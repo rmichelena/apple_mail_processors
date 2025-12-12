@@ -76,8 +76,14 @@ Esta es la carpeta requerida por Mail.app para ejecutar scripts desde reglas.
 
 - **macOS** con Apple Mail
 - **Python 3.11+** (probado con 3.14)
-- **qpdf** - para descifrar PDFs (`brew install qpdf`)
+- **qpdf** - para descifrar PDFs (se instala automáticamente si tienes Homebrew)
 - **API Key de Google Gemini** - obtener gratis en [AI Studio](https://aistudio.google.com/app/apikey)
+
+### Dependencias Python (se instalan automáticamente)
+- `google-genai` - SDK de Google Gemini AI
+- `pydantic` - Validación de datos
+- `beautifulsoup4` - Procesamiento HTML
+- `markdownify` - Conversión HTML→Markdown
 
 ## 🚀 Instalación
 
@@ -94,11 +100,13 @@ cd apple_mail_processors
 ./install.sh
 ```
 
-Esto:
-- Crea `config/config.toml` desde el template
-- Instala dependencias Python
-- Compila los AppleScripts
-- Crea carpetas necesarias
+El instalador automáticamente:
+- ✅ Detecta Python y actualiza la configuración
+- ✅ Instala qpdf via Homebrew (si está disponible)
+- ✅ Detecta paths y los configura
+- ✅ Crea `config/config.toml` desde el template
+- ✅ Instala dependencias Python
+- ✅ Compila e instala los AppleScripts
 
 ### 3. Editar configuración
 
@@ -106,16 +114,12 @@ Esto:
 nano config/config.toml
 ```
 
-Configura:
+Solo necesitas configurar manualmente:
 - `gemini.api_key` - Obtener en https://aistudio.google.com/app/apikey
 - `pdf.password` - Password de tus PDFs bancarios
 - `paths.output_folder` - Dónde guardar CSVs/PDFs
 
-### 4. Instalar qpdf (si no lo tienes)
-
-```bash
-brew install qpdf
-```
+> **Nota:** `python_path` y `qpdf_path` se detectan automáticamente durante la instalación.
 
 ### 5. Crear carpetas en Mail.app
 

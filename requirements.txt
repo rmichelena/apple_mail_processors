@@ -1,13 +1,17 @@
-# Mail Processors - Dependencias Python
+# =============================================================================
+# Apple Mail Processors - Dependencias Python
+# =============================================================================
 # Instalar con: pip3 install -r requirements.txt
 
-# Google Gemini AI
+# Google Gemini AI SDK
+# https://ai.google.dev/gemini-api/docs/quickstart?lang=python
 google-genai>=1.0.0
 
-# Validación de datos
+# Validación de datos estructurados
 pydantic>=2.0.0
 
-# Procesamiento de HTML para correos de taxi
+# Procesamiento de HTML (para correos de taxi)
 beautifulsoup4>=4.12.0
-markdownify>=0.11.0
 
+# Conversión HTML a Markdown
+markdownify>=0.11.0
