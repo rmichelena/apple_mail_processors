@@ -1,0 +1,45 @@
+# =============================================================================
+# Mail Processors - Git Ignore
+# =============================================================================
+
+# Configuración real (contiene API keys y passwords)
+config/config.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# AppleScript compilados (se generan con install.sh)
+applescripts/*.scpt
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# PDFs de ejemplo (no subir a git)
+PDFs ejemplo/
+
+# Logs
+*.log
+
+# Archivos temporales
+*.tmp
+*.temp
+

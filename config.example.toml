@@ -1,0 +1,41 @@
+# =============================================================================
+# Mail Processors - Configuración
+# =============================================================================
+# Copia este archivo a config/config.toml y edita con tus valores reales.
+# NO subas config/config.toml a git (está en .gitignore)
+# =============================================================================
+
+[gemini]
+# API Key de Google Gemini - obtener en https://aistudio.google.com/app/apikey
+api_key = "YOUR_GEMINI_API_KEY_HERE"
+
+[paths]
+# Carpeta donde se guardan los PDFs procesados, CSVs y JSONs
+output_folder = "~/Library/CloudStorage/Dropbox/your-path-here"
+
+# Path a Python 3 - verificar con: which python3
+python_path = "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3"
+
+# Path a qpdf - verificar con: which qpdf
+qpdf_path = "/opt/homebrew/bin/qpdf"
+
+# Carpeta temporal para archivos .eml
+eml_temp_folder = "~/Library/MailEML"
+
+[mail]
+# Nombre de la carpeta en Mail donde mover estados de cuenta procesados
+eecc_folder = "EECC"
+
+# Nombre de la carpeta en Mail donde mover correos de taxi procesados
+taxi_folder = "Taxis"
+
+[pdf]
+# Password para desbloquear PDFs de estados de cuenta
+# (común en bancos peruanos: últimos 8 dígitos del DNI)
+password = "YOUR_PDF_PASSWORD_HERE"
+
+[logging]
+# Archivos de log de AppleScript
+eecc_log = "~/Library/Logs/MailEECCRule.log"
+taxi_log = "~/Library/Logs/MailTaxiRule.log"
+
