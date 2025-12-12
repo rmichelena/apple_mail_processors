@@ -45,7 +45,7 @@ else
     # Intentar instalar con Homebrew si está disponible
     if command -v brew &> /dev/null; then
         echo "   📥 Instalando qpdf via Homebrew..."
-        if brew install qpdf; then
+        if brew install qpdf 2>/dev/null; then
             QPDF_PATH=$(which qpdf)
             echo "   ✓ Instalado: $QPDF_PATH"
             QPDF_INSTALLED=true
@@ -55,38 +55,73 @@ else
     # Intentar con MacPorts si Homebrew no funcionó
     if [ "$QPDF_INSTALLED" = false ] && command -v port &> /dev/null; then
         echo "   📥 Instalando qpdf via MacPorts..."
-        if sudo port install qpdf; then
+        if sudo port install qpdf 2>/dev/null; then
             QPDF_PATH=$(which qpdf)
             echo "   ✓ Instalado: $QPDF_PATH"
             QPDF_INSTALLED=true
         fi
     fi
     
-    # Si no se pudo instalar automáticamente
+    # Si no hay gestor de paquetes, ofrecer instalar Homebrew
     if [ "$QPDF_INSTALLED" = false ]; then
         echo ""
-        echo "   ❌ No se pudo instalar qpdf automáticamente"
+        echo "   No se encontró Homebrew ni MacPorts."
+        echo "   Homebrew es el gestor de paquetes más popular para macOS."
         echo ""
-        echo "   Opciones para instalar manualmente:"
+        read -p "   ¿Deseas instalar Homebrew y qpdf automáticamente? [s/N] " -n 1 -r
+        echo ""
+        
+        if [[ $REPLY =~ ^[SsYy]$ ]]; then
+            echo ""
+            echo "   📥 Instalando Homebrew..."
+            echo "   (Esto puede tardar unos minutos)"
+            echo ""
+            
+            # Instalar Homebrew de forma no interactiva
+            NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            
+            # Agregar Homebrew al PATH para esta sesión
+            if [[ $(uname -m) == "arm64" ]]; then
+                eval "$(/opt/homebrew/bin/brew shellenv)"
+            else
+                eval "$(/usr/local/bin/brew shellenv)"
+            fi
+            
+            echo ""
+            echo "   ✓ Homebrew instalado"
+            echo ""
+            echo "   📥 Instalando qpdf..."
+            brew install qpdf
+            
+            if command -v qpdf &> /dev/null; then
+                QPDF_PATH=$(which qpdf)
+                echo "   ✓ qpdf instalado: $QPDF_PATH"
+                QPDF_INSTALLED=true
+            fi
+        fi
+    fi
+    
+    # Si aún no se instaló, dar instrucciones manuales
+    if [ "$QPDF_INSTALLED" = false ]; then
+        echo ""
+        echo "   ❌ qpdf no instalado"
+        echo ""
+        echo "   Para instalar manualmente:"
         echo "   ┌─────────────────────────────────────────────────────────────┐"
-        echo "   │ Opción 1 - Homebrew (recomendado):                          │"
-        echo "   │   /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\" │"
+        echo "   │ Opción 1 - Homebrew:                                        │"
+        echo "   │   /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
         echo "   │   brew install qpdf                                         │"
         echo "   ├─────────────────────────────────────────────────────────────┤"
         echo "   │ Opción 2 - MacPorts:                                        │"
+        echo "   │   https://www.macports.org/install.php                      │"
         echo "   │   sudo port install qpdf                                    │"
-        echo "   ├─────────────────────────────────────────────────────────────┤"
-        echo "   │ Opción 3 - Descarga directa:                                │"
-        echo "   │   https://github.com/qpdf/qpdf/releases                     │"
-        echo "   │   Descarga el .pkg para macOS e instala                     │"
         echo "   └─────────────────────────────────────────────────────────────┘"
         echo ""
-        echo "   Después de instalar, ejecuta ./install.sh de nuevo"
-        echo "   o edita config/config.toml con el path correcto de qpdf"
+        echo "   Después de instalar qpdf, ejecuta ./install.sh de nuevo"
         echo ""
         
-        # Usar path por defecto (el usuario deberá ajustarlo)
-        QPDF_PATH="/usr/local/bin/qpdf"
+        # Usar path por defecto
+        QPDF_PATH="/opt/homebrew/bin/qpdf"
     fi
 fi
 
