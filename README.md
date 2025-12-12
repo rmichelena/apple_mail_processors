@@ -74,10 +74,21 @@ Esta es la carpeta requerida por Mail.app para ejecutar scripts desde reglas.
 
 ## 📋 Requisitos
 
-- **macOS** con Apple Mail
+- **macOS 11 Big Sur o superior** (probado en Sonoma/Ventura/Monterey)
 - **Python 3.11+** (probado con 3.14)
 - **qpdf** - para descifrar PDFs (se instala automáticamente si tienes Homebrew)
 - **API Key de Google Gemini** - obtener gratis en [AI Studio](https://aistudio.google.com/app/apikey)
+
+### Compatibilidad macOS
+
+| Versión | Soporte |
+|---------|---------|
+| macOS 14 Sonoma | ✅ Completo |
+| macOS 13 Ventura | ✅ Completo |
+| macOS 12 Monterey | ✅ Completo |
+| macOS 11 Big Sur | ✅ Debería funcionar |
+| macOS 10.15 Catalina | ⚠️ Sin soporte oficial de Homebrew |
+| macOS 10.14 o anterior | ❌ No soportado |
 
 ### Dependencias Python (se instalan automáticamente)
 - `google-genai` - SDK de Google Gemini AI
