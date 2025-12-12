@@ -40,20 +40,53 @@ if command -v qpdf &> /dev/null; then
     echo "   ✓ Encontrado: $QPDF_PATH"
 else
     echo "   ⚠️  qpdf no encontrado"
+    QPDF_INSTALLED=false
     
     # Intentar instalar con Homebrew si está disponible
     if command -v brew &> /dev/null; then
         echo "   📥 Instalando qpdf via Homebrew..."
-        brew install qpdf
-        QPDF_PATH=$(which qpdf)
-        echo "   ✓ Instalado: $QPDF_PATH"
-    else
-        echo "   ❌ Homebrew no disponible para instalar qpdf automáticamente"
-        echo "   Opciones:"
-        echo "      1. Instalar Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-        echo "      2. Luego: brew install qpdf"
-        echo "   O descarga qpdf manualmente de: https://qpdf.sourceforge.io/"
-        QPDF_PATH="/opt/homebrew/bin/qpdf"  # Path por defecto, ajustar manualmente
+        if brew install qpdf; then
+            QPDF_PATH=$(which qpdf)
+            echo "   ✓ Instalado: $QPDF_PATH"
+            QPDF_INSTALLED=true
+        fi
+    fi
+    
+    # Intentar con MacPorts si Homebrew no funcionó
+    if [ "$QPDF_INSTALLED" = false ] && command -v port &> /dev/null; then
+        echo "   📥 Instalando qpdf via MacPorts..."
+        if sudo port install qpdf; then
+            QPDF_PATH=$(which qpdf)
+            echo "   ✓ Instalado: $QPDF_PATH"
+            QPDF_INSTALLED=true
+        fi
+    fi
+    
+    # Si no se pudo instalar automáticamente
+    if [ "$QPDF_INSTALLED" = false ]; then
+        echo ""
+        echo "   ❌ No se pudo instalar qpdf automáticamente"
+        echo ""
+        echo "   Opciones para instalar manualmente:"
+        echo "   ┌─────────────────────────────────────────────────────────────┐"
+        echo "   │ Opción 1 - Homebrew (recomendado):                          │"
+        echo "   │   /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\" │"
+        echo "   │   brew install qpdf                                         │"
+        echo "   ├─────────────────────────────────────────────────────────────┤"
+        echo "   │ Opción 2 - MacPorts:                                        │"
+        echo "   │   sudo port install qpdf                                    │"
+        echo "   ├─────────────────────────────────────────────────────────────┤"
+        echo "   │ Opción 3 - Descarga directa:                                │"
+        echo "   │   https://github.com/qpdf/qpdf/releases                     │"
+        echo "   │   Descarga el .pkg para macOS e instala                     │"
+        echo "   └─────────────────────────────────────────────────────────────┘"
+        echo ""
+        echo "   Después de instalar, ejecuta ./install.sh de nuevo"
+        echo "   o edita config/config.toml con el path correcto de qpdf"
+        echo ""
+        
+        # Usar path por defecto (el usuario deberá ajustarlo)
+        QPDF_PATH="/usr/local/bin/qpdf"
     fi
 fi
 
@@ -108,8 +141,12 @@ echo "   ✓ ~/Library/MailEML"
 # =============================================================================
 echo ""
 echo "5️⃣  Instalando dependencias Python..."
-"$PYTHON_PATH" -m pip install -r requirements.txt --quiet
-echo "   ✓ Dependencias instaladas"
+echo "   - google-genai (Gemini AI SDK)"
+echo "   - pydantic (validación de datos)"
+echo "   - beautifulsoup4 (procesamiento HTML)"
+echo "   - markdownify (conversión HTML→Markdown)"
+"$PYTHON_PATH" -m pip install -r requirements.txt --quiet --disable-pip-version-check
+echo "   ✓ Todas las dependencias instaladas"
 
 # =============================================================================
 # 6. Compilar AppleScripts e instalar en Mail
