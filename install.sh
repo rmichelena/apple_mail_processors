@@ -192,19 +192,32 @@ echo "6️⃣  Compilando AppleScripts..."
 MAIL_SCRIPTS_DIR="$HOME/Library/Application Scripts/com.apple.mail"
 mkdir -p "$MAIL_SCRIPTS_DIR"
 
-cd applescripts
+# Crear copias temporales con paths actualizados
+TEMP_DIR=$(mktemp -d)
 
-if [ -f procesar_eecc.applescript ]; then
-    osacompile -o "$MAIL_SCRIPTS_DIR/procesar_eecc.scpt" procesar_eecc.applescript
-    echo "   ✓ procesar_eecc.scpt"
-fi
+for script in applescripts/*.applescript; do
+    if [ -f "$script" ]; then
+        SCRIPT_NAME=$(basename "$script")
+        TEMP_SCRIPT="$TEMP_DIR/$SCRIPT_NAME"
+        
+        # Copiar y actualizar paths
+        cp "$script" "$TEMP_SCRIPT"
+        
+        # Actualizar installPath con el directorio actual
+        sed -i '' "s|property installPath : \".*\"|property installPath : \"$SCRIPT_DIR\"|" "$TEMP_SCRIPT"
+        
+        # Actualizar pythonPath
+        sed -i '' "s|set pythonPath to \".*\"|set pythonPath to \"$PYTHON_PATH\"|" "$TEMP_SCRIPT"
+        
+        # Compilar e instalar
+        SCPT_NAME="${SCRIPT_NAME%.applescript}.scpt"
+        osacompile -o "$MAIL_SCRIPTS_DIR/$SCPT_NAME" "$TEMP_SCRIPT"
+        echo "   ✓ $SCPT_NAME (paths configurados)"
+    fi
+done
 
-if [ -f procesar_taxi.applescript ]; then
-    osacompile -o "$MAIL_SCRIPTS_DIR/procesar_taxi.scpt" procesar_taxi.applescript
-    echo "   ✓ procesar_taxi.scpt"
-fi
-
-cd ..
+# Limpiar
+rm -rf "$TEMP_DIR"
 
 echo "   📁 Instalados en: $MAIL_SCRIPTS_DIR/"
 

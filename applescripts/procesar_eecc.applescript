@@ -15,8 +15,8 @@
 -- CONFIGURACIÓN
 -- ============================================================================
 
--- Ruta a la instalación de MailProcessors
-property installPath : "/Users/roberto/Library/CloudStorage/Dropbox/sync-backup/data/DEVELOPMENT/mis developments/Extractor EECC"
+-- Ruta a la instalación de MailProcessors (actualizado por install.sh)
+property installPath : "__INSTALL_PATH__"
 
 -- Carpeta temporal para .eml
 property emlFolder : "~/Library/MailEML"
@@ -35,7 +35,7 @@ using terms from application "Mail"
 		-- Expandir paths
 		set emlFolderPOSIX to do shell script "echo " & emlFolder
 		set logFilePOSIX to do shell script "echo " & logFile
-		set pythonPath to "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3"
+		set pythonPath to "__PYTHON_PATH__"
 		set scriptPath to installPath & "/scripts/extract_from_email.py"
 		
 		-- Crear carpeta EML si no existe
