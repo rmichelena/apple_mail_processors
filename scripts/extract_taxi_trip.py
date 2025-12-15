@@ -18,6 +18,7 @@ import sys
 import csv
 import json
 import email
+from email import policy
 import argparse
 from pathlib import Path
 from datetime import datetime
@@ -183,7 +184,7 @@ def process_eml(eml_path: str, message_id: str = None) -> bool:
     
     # Leer correo
     with open(eml_path, 'rb') as f:
-        msg = email.message_from_binary_file(f)
+        msg = email.message_from_binary_file(f, policy=policy.default)
     
     # Obtener contenido HTML o texto
     html_content = None

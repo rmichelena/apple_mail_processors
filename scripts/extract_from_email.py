@@ -13,6 +13,7 @@ en Mail.app después de un procesamiento exitoso.
 
 import sys
 import email
+from email import policy
 import tempfile
 import subprocess
 import argparse
@@ -45,7 +46,7 @@ def extract_pdfs_from_eml(eml_path: Path) -> list[tuple[str, bytes]]:
         Lista de tuplas (filename, contenido_bytes)
     """
     with open(eml_path, 'rb') as f:
-        msg = email.message_from_binary_file(f)
+        msg = email.message_from_binary_file(f, policy=policy.default)
     
     pdfs = []
     

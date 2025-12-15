@@ -27,6 +27,14 @@ with open(CONFIG_FILE, "rb") as f:
 # Gemini
 GEMINI_API_KEY = _config["gemini"]["api_key"]
 
+# Validar API key
+if not GEMINI_API_KEY or GEMINI_API_KEY.startswith("YOUR_"):
+    raise ValueError(
+        "❌ API key de Gemini no configurada.\n"
+        "   Edita config/config.toml y agrega tu API key de Google Gemini.\n"
+        "   Obtén una gratis en: https://aistudio.google.com/app/apikey"
+    )
+
 # Paths
 OUTPUT_FOLDER = Path(_config["paths"]["output_folder"]).expanduser()
 PYTHON_PATH = _config["paths"]["python_path"]
