@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "processors": [
+    {
+      "id": "eecc",
+      "enabled": true,
+      "path": "processors/eecc"
+    },
+    {
+      "id": "taxi",
+      "enabled": true,
+      "path": "processors/taxi"
+    },
+    {
+      "id": "amazon",
+      "enabled": false,
+      "path": "processors/amazon",
+      "status": "coming_soon"
+    }
+  ]
+}
+

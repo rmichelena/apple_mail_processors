@@ -1,0 +1,53 @@
+{
+  "id": "eecc",
+  "name": "Estados de Cuenta",
+  "icon": "💳",
+  "description": "Extrae movimientos de tarjetas de crédito a CSV separados por moneda",
+  "version": "1.0.0",
+  "author": "Roberto Michelena",
+  
+  "mail_config": {
+    "folder_default": "EECC",
+    "folder_description": "Carpeta donde se moverán los correos procesados"
+  },
+  
+  "output": {
+    "description": "CSVs separados por moneda (PEN/USD) + JSON con metadata",
+    "files": [
+      "{Tarjeta} {Banco} {Año-Mes} PEN.csv",
+      "{Tarjeta} {Banco} {Año-Mes} USD.csv",
+      "{Tarjeta} {Banco} {Año-Mes}.json",
+      "{Tarjeta} {Banco} {Año-Mes}.pdf"
+    ]
+  },
+  
+  "dependencies": {
+    "system": ["qpdf"],
+    "python": ["google-genai", "pydantic"]
+  },
+  
+  "sender_hints": [
+    "interbank.pe",
+    "scotiabank.com.pe",
+    "bcp.com.pe",
+    "bancofalabella.pe",
+    "bbva.pe",
+    "oh.com.pe"
+  ],
+  
+  "config_fields": [
+    {
+      "key": "pdf_password",
+      "label": "Password de PDFs",
+      "description": "Generalmente los últimos 8 dígitos de tu DNI",
+      "type": "password",
+      "required": true
+    }
+  ],
+
+  "scripts": {
+    "handler": "handler.applescript",
+    "processor": "processor.py"
+  }
+}
+

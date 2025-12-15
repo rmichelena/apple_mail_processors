@@ -1,0 +1,41 @@
+{
+  "id": "taxi",
+  "name": "Viajes de Taxi",
+  "icon": "🚕",
+  "description": "Consolida viajes de Uber, Cabify, Beat, DiDi, InDriver en un CSV",
+  "version": "1.0.0",
+  "author": "Roberto Michelena",
+  
+  "mail_config": {
+    "folder_default": "Taxis",
+    "folder_description": "Carpeta donde se moverán los correos procesados"
+  },
+  
+  "output": {
+    "description": "Un CSV consolidado con todos los viajes",
+    "files": [
+      "viajes taxi.csv"
+    ]
+  },
+  
+  "dependencies": {
+    "system": [],
+    "python": ["google-genai", "pydantic", "beautifulsoup4", "markdownify"]
+  },
+  
+  "sender_hints": [
+    "uber.com",
+    "cabify.com",
+    "beat.co",
+    "didi.com",
+    "indriver.com"
+  ],
+  
+  "config_fields": [],
+
+  "scripts": {
+    "handler": "handler.applescript",
+    "processor": "processor.py"
+  }
+}
+

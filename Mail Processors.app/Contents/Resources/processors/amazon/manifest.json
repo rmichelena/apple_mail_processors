@@ -1,0 +1,40 @@
+{
+  "id": "amazon",
+  "name": "Amazon Orders",
+  "icon": "📦",
+  "description": "Extrae información de órdenes de Amazon",
+  "version": "0.0.1",
+  "author": "Roberto Michelena",
+  "status": "coming_soon",
+  
+  "mail_config": {
+    "folder_default": "Amazon",
+    "folder_description": "Carpeta donde se moverán los correos procesados"
+  },
+  
+  "output": {
+    "description": "CSV con órdenes de Amazon",
+    "files": [
+      "amazon orders.csv"
+    ]
+  },
+  
+  "dependencies": {
+    "system": [],
+    "python": ["google-genai", "pydantic", "beautifulsoup4", "markdownify"]
+  },
+  
+  "sender_hints": [
+    "amazon.com",
+    "amazon.com.mx",
+    "amazon.es"
+  ],
+  
+  "config_fields": [],
+
+  "scripts": {
+    "handler": "handler.applescript",
+    "processor": "processor.py"
+  }
+}
+
