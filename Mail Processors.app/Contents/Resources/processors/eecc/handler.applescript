@@ -45,7 +45,7 @@ using terms from application "Mail"
 					write msgSource to fileRef
 					close access fileRef
 					
-					set pythonCmd to quoted form of pythonPath & " " & quoted form of processorPath & " " & quoted form of emlPathPOSIX & " --message-id " & msgId
+					set pythonCmd to quoted form of pythonPath & " " & quoted form of processorPath & " " & quoted form of emlPathPOSIX & " --message-id " & quoted form of msgId
 					
 					do shell script pythonCmd & " >> " & quoted form of logFilePOSIX & " 2>&1 &"
 					

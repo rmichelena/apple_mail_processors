@@ -153,8 +153,9 @@ def generate_base_name(metadata: StatementMetadata) -> str:
     try:
         fecha = datetime.strptime(metadata.fecha_cierre, '%Y-%m-%d')
         year_month = fecha.strftime('%Y-%m')
-    except:
-        year_month = metadata.fecha_cierre[:7]
+    except ValueError as e:
+        log(f"⚠️ Fecha malformada '{metadata.fecha_cierre}': {e}")
+        year_month = metadata.fecha_cierre[:7] if len(metadata.fecha_cierre) >= 7 else "0000-00"
     
     return f"{metadata.tipo_tarjeta} {metadata.banco} {year_month}"
 
@@ -225,8 +226,10 @@ def process_eml(eml_path: str, message_id: str = None) -> bool:
         log(f"📁 {base_name}")
         
         # CSVs
-        export_csv(statement.movimientos, str(OUTPUT_FOLDER / f"{base_name} PEN.csv"), 'PEN')
-        export_csv(statement.movimientos, str(OUTPUT_FOLDER / f"{base_name} USD.csv"), 'USD')
+        if not export_csv(statement.movimientos, str(OUTPUT_FOLDER / f"{base_name} PEN.csv"), 'PEN'):
+            log("ℹ️ Sin movimientos en PEN")
+        if not export_csv(statement.movimientos, str(OUTPUT_FOLDER / f"{base_name} USD.csv"), 'USD'):
+            log("ℹ️ Sin movimientos en USD")
         
         # JSON
         with open(OUTPUT_FOLDER / f"{base_name}.json", 'w', encoding='utf-8') as f:

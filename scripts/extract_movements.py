@@ -195,8 +195,9 @@ def generate_base_name(metadata: StatementMetadata) -> str:
     try:
         fecha = datetime.strptime(metadata.fecha_cierre, '%Y-%m-%d')
         year_month = fecha.strftime('%Y-%m')
-    except:
-        year_month = metadata.fecha_cierre[:7]  # Fallback
+    except ValueError as e:
+        print(f"⚠️  Fecha de cierre malformada '{metadata.fecha_cierre}': {e}")
+        year_month = metadata.fecha_cierre[:7] if len(metadata.fecha_cierre) >= 7 else "0000-00"
     
     # Limpiar nombres
     tipo = metadata.tipo_tarjeta.strip()
@@ -286,8 +287,13 @@ def process_pdf(pdf_path: str, output_dir: Path = None) -> tuple[bool, Extracted
     pen_csv = output_dir / f"{base_name} PEN.csv"
     usd_csv = output_dir / f"{base_name} USD.csv"
     
-    export_csv_by_currency(statement.movimientos, str(pen_csv), 'PEN')
-    export_csv_by_currency(statement.movimientos, str(usd_csv), 'USD')
+    pen_exported = export_csv_by_currency(statement.movimientos, str(pen_csv), 'PEN')
+    usd_exported = export_csv_by_currency(statement.movimientos, str(usd_csv), 'USD')
+    
+    if not pen_exported:
+        print("ℹ️  Sin movimientos en PEN")
+    if not usd_exported:
+        print("ℹ️  Sin movimientos en USD")
     
     # Exportar JSON completo
     json_path = output_dir / f"{base_name}.json"
@@ -308,9 +314,12 @@ def process_pdf(pdf_path: str, output_dir: Path = None) -> tuple[bool, Extracted
     if pdf_path != new_pdf_name:
         if new_pdf_name.exists():
             print(f"⚠️  PDF destino ya existe: {new_pdf_name}")
+            print(f"    PDF original conservado en: {pdf_path}")
         else:
             shutil.move(str(pdf_path), str(new_pdf_name))
             print(f"📄 PDF renombrado: {new_pdf_name}")
+    else:
+        print(f"📄 PDF ya tiene el nombre correcto: {pdf_path}")
     
     print("\n✅ ¡Proceso completado!")
     return True, statement

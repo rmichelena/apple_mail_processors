@@ -74,7 +74,7 @@ using terms from application "Mail"
 					close access fileRef
 					
 					-- Construir comando Python con message-id
-					set pythonCmd to quoted form of pythonPath & " " & quoted form of scriptPath & " " & quoted form of emlPathPOSIX & " --message-id " & msgId
+					set pythonCmd to quoted form of pythonPath & " " & quoted form of scriptPath & " " & quoted form of emlPathPOSIX & " --message-id " & quoted form of msgId
 					
 					-- Log del comando
 					do shell script "echo '  → Comando: " & pythonCmd & "' >> " & quoted form of logFilePOSIX
