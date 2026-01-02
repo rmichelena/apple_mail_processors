@@ -29,7 +29,7 @@ from config import (
     EECC_ERROR_LOG,
     ensure_folders
 )
-from mail_actions import mark_read_and_move
+from mail_actions import mark_read_and_move, flag_message
 
 
 def log(msg: str):
@@ -192,22 +192,39 @@ def process_eml(eml_path: str, message_id: str = None):
                 
                 return True
             else:
-                log("❌ El documento no es un estado de cuenta válido")
+                log("⚠️  El documento no es un estado de cuenta válido")
                 # Limpiar PDF temporal si no se procesó
                 if output_pdf.exists():
                     output_pdf.unlink()
+                
+                # Flag naranja = no es lo que esperábamos (queda unread)
+                if message_id:
+                    log(f"🟠 Marcando mensaje con flag naranja (no es EECC)...")
+                    if flag_message(message_id, flag_index=2):  # 2 = naranja
+                        log("✅ Flag aplicado - revisar manualmente")
+                    else:
+                        log("⚠️  No se pudo aplicar el flag")
+                
                 return False
                 
         except Exception as e:
             log(f"❌ Error en procesamiento: {e}")
             
-            # Guardar error
+            # Guardar error en log
             with open(EECC_ERROR_LOG, 'a') as f:
                 f.write(f"\n{'='*60}\n")
                 f.write(f"[{datetime.now()}] Error procesando {eml_path.name}\n")
                 f.write(f"{e}\n")
                 import traceback
                 f.write(traceback.format_exc())
+            
+            # Poner flag rojo al mensaje para indicar que falló
+            if message_id:
+                log(f"🚩 Marcando mensaje con flag rojo (error de procesamiento)...")
+                if flag_message(message_id, flag_index=1):  # 1 = rojo
+                    log("✅ Flag aplicado - revisar manualmente")
+                else:
+                    log("⚠️  No se pudo aplicar el flag")
             
             return False
 

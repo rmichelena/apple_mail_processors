@@ -1,0 +1,472 @@
+{
+  "name": "Mail Processors - Taxis y EECC",
+  "nodes": [
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "parameters": {
+        "filters": {
+          "readStatus": "unread"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "name": "Clasificar Email",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [240, 300],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "Taxi",
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "leftValue": "={{ $json.from }}",
+                    "rightValue": "uber.com"
+                  },
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "leftValue": "={{ $json.from }}",
+                    "rightValue": "didi"
+                  },
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "leftValue": "={{ $json.from }}",
+                    "rightValue": "cabify"
+                  },
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "leftValue": "={{ $json.from }}",
+                    "rightValue": "yango"
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "EECC",
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "leftValue": "={{ $json.subject }}",
+                    "rightValue": "estado de cuenta"
+                  }
+                ]
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000003",
+      "name": "Preparar Email Taxi",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [500, 140],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "content",
+              "name": "emailContent",
+              "value": "={{ $json.text || $json.textPlain || $json.html || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "provider",
+              "name": "provider",
+              "value": "={{ $json.from.toLowerCase().includes('uber') ? 'Uber' : $json.from.toLowerCase().includes('didi') ? 'DiDi' : $json.from.toLowerCase().includes('cabify') ? 'Cabify' : $json.from.toLowerCase().includes('yango') ? 'Yango' : 'Otro' }}",
+              "type": "string"
+            },
+            {
+              "id": "msgId",
+              "name": "messageId",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "from",
+              "name": "from",
+              "value": "={{ $json.from }}",
+              "type": "string"
+            },
+            {
+              "id": "subject",
+              "name": "subject",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000004",
+      "name": "Gemini API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 140],
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: 'Analiza este correo de un servicio de taxi/transporte (Uber, Cabify, Beat, InDriver, DiDi, etc.) y extrae la información del viaje.\\n\\n## PRIMERO: VALIDACIÓN\\n- **es_viaje**: Si el correo es un recibo/comprobante de viaje realizado, pon true. Si es publicidad, promoción, código de descuento, encuesta, o NO contiene info de un viaje específico, pon false.\\n\\n## SI ES UN RECIBO DE VIAJE, EXTRAE:\\n1. **empresa**: Uber, Cabify, Beat, InDriver, DiDi, etc.\\n2. **fecha**: En formato YYYY-MM-DD\\n3. **hora**: En formato HH:MM (24 horas)\\n4. **origen**: Dirección o punto de recogida\\n5. **destino**: Dirección o punto de llegada\\n6. **moneda**: PEN (soles peruanos) o USD\\n7. **precio**: Monto total cobrado (número decimal)\\n\\n## IMPORTANTE\\n- Si no puedes determinar algún campo, usa valores razonables o \"Desconocido\"\\n- El precio debe ser un número (sin símbolos de moneda)\\n- La moneda en Perú generalmente es PEN (soles)\\n\\nCONTENIDO DEL CORREO:\\n' + $json.emailContent }] }], generationConfig: { temperature: 0.1, responseMimeType: 'application/json', responseSchema: { type: 'object', properties: { es_viaje: { type: 'boolean' }, empresa: { type: 'string' }, fecha: { type: 'string' }, hora: { type: 'string' }, origen: { type: 'string' }, destino: { type: 'string' }, moneda: { type: 'string' }, precio: { type: 'number' } }, required: ['es_viaje', 'empresa', 'fecha', 'hora', 'origen', 'destino', 'moneda', 'precio'] } } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000005",
+      "name": "Parsear Respuesta Gemini",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [940, 140],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tripData",
+              "name": "tripData",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text) }}",
+              "type": "object"
+            },
+            {
+              "id": "msgId2",
+              "name": "messageId",
+              "value": "={{ $('Preparar Email Taxi').item.json.messageId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000013",
+      "name": "Es Viaje?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1160, 140],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              },
+              "leftValue": "={{ $json.tripData.es_viaje }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000006",
+      "name": "Formatear para Sheets",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1380, 80],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fecha",
+              "name": "Fecha",
+              "value": "={{ $json.tripData.fecha }}",
+              "type": "string"
+            },
+            {
+              "id": "hora",
+              "name": "Hora",
+              "value": "={{ $json.tripData.hora }}",
+              "type": "string"
+            },
+            {
+              "id": "empresa",
+              "name": "Empresa",
+              "value": "={{ $json.tripData.empresa }}",
+              "type": "string"
+            },
+            {
+              "id": "origen",
+              "name": "Origen",
+              "value": "={{ $json.tripData.origen }}",
+              "type": "string"
+            },
+            {
+              "id": "destino",
+              "name": "Destino",
+              "value": "={{ $json.tripData.destino }}",
+              "type": "string"
+            },
+            {
+              "id": "moneda",
+              "name": "Moneda",
+              "value": "={{ $json.tripData.moneda }}",
+              "type": "string"
+            },
+            {
+              "id": "precio",
+              "name": "Precio",
+              "value": "={{ $json.tripData.precio }}",
+              "type": "number"
+            },
+            {
+              "id": "msgid3",
+              "name": "_messageId",
+              "value": "={{ $json.messageId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000007",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1600, 80],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000008",
+      "name": "Gmail Etiquetar",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1820, 80],
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Formatear para Sheets').item.json._messageId }}",
+        "labelIds": []
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000009",
+      "name": "EECC (pendiente)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {}
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000010",
+      "name": "Ignorar",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [500, 460],
+      "parameters": {}
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000011",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-320, 60],
+      "parameters": {
+        "content": "## 📧 Mail Processors - Taxis y EECC\n\n### Configuración requerida:\n\n1. **Gmail Trigger**: Conectar cuenta Gmail (OAuth2)\n\n2. **Gemini API**: Crear credencial \"HTTP Query Auth\":\n   - Name: `key`\n   - Value: `tu_api_key_de_gemini`\n\n3. **Google Sheets**: \n   - Crear spreadsheet con columnas:\n   - Fecha, Hora, Empresa, Origen, Destino, Moneda, Precio\n   - Seleccionar document y sheet\n\n4. **Gmail Etiquetar**: \n   - Crear label \"Taxis\" en Gmail\n   - Configurar el labelId\n\n### Flujo:\n- Si es_viaje=true → guarda en Sheets\n- Si es_viaje=false → ignora (publicidad)",
+        "width": 360,
+        "height": 460,
+        "color": 4
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000012",
+      "name": "EECC Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [500, 540],
+      "parameters": {
+        "content": "## 🚧 EECC - Por implementar\n\n- Extraer PDF adjunto\n- Read PDF con password\n- Gemini para movimientos\n- Separar por moneda",
+        "width": 220,
+        "height": 160
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Clasificar Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar Email": {
+      "main": [
+        [
+          {
+            "node": "Preparar Email Taxi",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "EECC (pendiente)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Email Taxi": {
+      "main": [
+        [
+          {
+            "node": "Gemini API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini API": {
+      "main": [
+        [
+          {
+            "node": "Parsear Respuesta Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Respuesta Gemini": {
+      "main": [
+        [
+          {
+            "node": "Es Viaje?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es Viaje?": {
+      "main": [
+        [
+          {
+            "node": "Formatear para Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Formatear para Sheets": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Gmail Etiquetar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

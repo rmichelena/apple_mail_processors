@@ -25,12 +25,43 @@ from google.genai import types
 from pydantic import BaseModel, Field
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
+import httpx
+import httpcore
+import logging
 
 from config import (
     GEMINI_API_KEY, OUTPUT_FOLDER, TAXI_FOLDER,
     TAXI_CSV, TAXI_ERROR_LOG, ensure_folders
 )
-from mail_actions import mark_read_and_move
+from mail_actions import mark_read_and_move, flag_message
+
+# Logger para reintentos
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+
+# Decorador de reintento para errores de red transitorios
+network_retry = retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=2, min=4, max=60),
+    retry=retry_if_exception_type((
+        httpx.ReadError,
+        httpx.ConnectError,
+        httpx.TimeoutException,
+        httpcore.ReadError,
+        httpcore.ConnectError,
+        ConnectionResetError,
+        ConnectionError,
+    )),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
 
 
 # ============================================================================
@@ -70,8 +101,9 @@ def html_to_markdown(html_content: str) -> str:
     return '\n'.join(line for line in lines if line)
 
 
+@network_retry
 def extract_trip_info(markdown_content: str) -> TaxiTrip:
-    """Usa Gemini para extraer información del viaje"""
+    """Usa Gemini para extraer información del viaje (con reintentos automáticos)"""
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     prompt = """
@@ -138,54 +170,81 @@ def process_eml(eml_path: str, message_id: str = None) -> bool:
     
     log(f"📧 Procesando: {eml_path.name}")
     
-    # Leer correo
-    with open(eml_path, 'rb') as f:
-        msg = email.message_from_binary_file(f, policy=policy.default)
-    
-    # Obtener contenido
-    html_content = None
-    text_content = None
-    
-    for part in msg.walk():
-        content_type = part.get_content_type()
-        if content_type == 'text/html':
-            payload = part.get_payload(decode=True)
-            charset = part.get_content_charset() or 'utf-8'
-            html_content = payload.decode(charset, errors='replace')
-        elif content_type == 'text/plain' and not html_content:
-            payload = part.get_payload(decode=True)
-            charset = part.get_content_charset() or 'utf-8'
-            text_content = payload.decode(charset, errors='replace')
-    
-    if html_content:
-        markdown = html_to_markdown(html_content)
-    elif text_content:
-        markdown = text_content
-    else:
-        log("❌ No se encontró contenido")
+    try:
+        # Leer correo
+        with open(eml_path, 'rb') as f:
+            msg = email.message_from_binary_file(f, policy=policy.default)
+        
+        # Obtener contenido
+        html_content = None
+        text_content = None
+        
+        for part in msg.walk():
+            content_type = part.get_content_type()
+            if content_type == 'text/html':
+                payload = part.get_payload(decode=True)
+                charset = part.get_content_charset() or 'utf-8'
+                html_content = payload.decode(charset, errors='replace')
+            elif content_type == 'text/plain' and not html_content:
+                payload = part.get_payload(decode=True)
+                charset = part.get_content_charset() or 'utf-8'
+                text_content = payload.decode(charset, errors='replace')
+        
+        if html_content:
+            markdown = html_to_markdown(html_content)
+        elif text_content:
+            markdown = text_content
+        else:
+            log("❌ No se encontró contenido")
+            # Flag naranja - no pudimos leer el contenido
+            if message_id:
+                log("🟠 Marcando con flag naranja (sin contenido)...")
+                flag_message(message_id, flag_index=2)
+            return False
+        
+        # Extraer información (con reintentos automáticos)
+        log("🤖 Extrayendo con Gemini...")
+        trip = extract_trip_info(markdown)
+        
+        if not trip.es_viaje:
+            log("⚠️ No es un recibo de viaje")
+            # Flag naranja - no es lo que esperábamos (queda unread)
+            if message_id:
+                log("🟠 Marcando con flag naranja (no es viaje)...")
+                flag_message(message_id, flag_index=2)
+            return False
+        
+        log(f"🚗 {trip.empresa}: {trip.origen} → {trip.destino}")
+        log(f"📅 {trip.fecha} {trip.hora} - {trip.moneda} {trip.precio}")
+        
+        # Agregar al CSV
+        append_to_csv(trip)
+        log(f"✅ Agregado a {TAXI_CSV}")
+        
+        # Solo mover y marcar read si procesamos OK
+        if message_id:
+            if mark_read_and_move(message_id, TAXI_FOLDER):
+                log("📬 Mensaje movido")
+        
+        return True
+        
+    except Exception as e:
+        log(f"❌ Error en procesamiento: {e}")
+        
+        # Guardar error en log
+        with open(TAXI_ERROR_LOG, 'a') as f:
+            f.write(f"\n{'='*60}\n")
+            f.write(f"[{datetime.now()}] Error procesando {eml_path.name}\n")
+            f.write(f"{e}\n")
+            import traceback
+            f.write(traceback.format_exc())
+        
+        # Flag rojo - error de procesamiento (queda unread)
+        if message_id:
+            log("🚩 Marcando con flag rojo (error)...")
+            flag_message(message_id, flag_index=1)
+        
         return False
-    
-    # Extraer información
-    log("🤖 Extrayendo con Gemini...")
-    trip = extract_trip_info(markdown)
-    
-    if not trip.es_viaje:
-        log("⚠️ No es un recibo de viaje")
-        return False
-    
-    log(f"🚗 {trip.empresa}: {trip.origen} → {trip.destino}")
-    log(f"📅 {trip.fecha} {trip.hora} - {trip.moneda} {trip.precio}")
-    
-    # Agregar al CSV
-    append_to_csv(trip)
-    log(f"✅ Agregado a {TAXI_CSV}")
-    
-    # Mover mensaje en Mail
-    if message_id:
-        if mark_read_and_move(message_id, TAXI_FOLDER):
-            log("📬 Mensaje movido")
-    
-    return True
 
 
 def main():
@@ -194,19 +253,16 @@ def main():
     parser.add_argument('--message-id')
     args = parser.parse_args()
     
+    success = process_eml(args.eml_file, args.message_id)
+    
+    # Eliminar .eml temporal
     try:
-        success = process_eml(args.eml_file, args.message_id)
-        
-        # Eliminar .eml temporal
-        try:
-            Path(args.eml_file).unlink()
-        except:
-            pass
-        
-        sys.exit(0 if success else 1)
-    except Exception as e:
-        log(f"❌ Error: {e}")
-        sys.exit(1)
+        Path(args.eml_file).unlink()
+        log("🗑️  EML temporal eliminado")
+    except:
+        pass
+    
+    sys.exit(0 if success else 1)
 
 
 if __name__ == '__main__':

@@ -151,6 +151,57 @@ def mark_read_only(message_id: str) -> bool:
         return False
 
 
+def flag_message(message_id: str, flag_index: int = 1) -> bool:
+    """
+    Pone un flag (bandera de color) a un mensaje.
+    Útil para marcar mensajes que fallaron en el procesamiento.
+    
+    Args:
+        message_id: ID único del mensaje
+        flag_index: Color del flag (0=none, 1=red, 2=orange, 3=yellow, 
+                                     4=green, 5=blue, 6=purple, 7=gray)
+    
+    Returns:
+        True si tuvo éxito, False si falló
+    """
+    
+    script = f'''
+    tell application "Mail"
+        repeat with acct in accounts
+            repeat with mbx in mailboxes of acct
+                try
+                    set msgs to (messages of mbx whose id is {message_id})
+                    if (count of msgs) > 0 then
+                        set flag index of item 1 of msgs to {flag_index}
+                        return "OK"
+                    end if
+                end try
+            end repeat
+            -- También buscar en inbox
+            try
+                set msgs to (messages of inbox of acct whose id is {message_id})
+                if (count of msgs) > 0 then
+                    set flag index of item 1 of msgs to {flag_index}
+                    return "OK"
+                end if
+            end try
+        end repeat
+        error "Mensaje no encontrado"
+    end tell
+    '''
+    
+    try:
+        result = subprocess.run(
+            ['osascript', '-e', script],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        return result.returncode == 0
+    except:
+        return False
+
+
 if __name__ == '__main__':
     # Test
     import sys

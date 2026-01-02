@@ -24,9 +24,23 @@ from datetime import datetime
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
+import httpx
+import httpcore
+import logging
 
 # Importar configuración
 from config import GEMINI_API_KEY, OUTPUT_FOLDER
+
+# Logger para reintentos
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 
 # ============================================================================
@@ -68,6 +82,44 @@ class ExtractedStatement(BaseModel):
 # EXTRACCIÓN
 # ============================================================================
 
+# Decorador de reintento para errores de red transitorios
+network_retry = retry(
+    stop=stop_after_attempt(5),  # Máximo 5 intentos
+    wait=wait_exponential(multiplier=2, min=4, max=60),  # 4s, 8s, 16s, 32s, 60s
+    retry=retry_if_exception_type((
+        httpx.ReadError,
+        httpx.ConnectError,
+        httpx.TimeoutException,
+        httpcore.ReadError,
+        httpcore.ConnectError,
+        ConnectionResetError,
+        ConnectionError,
+    )),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+
+
+@network_retry
+def _upload_file(client: genai.Client, pdf_path: str):
+    """Sube un archivo a Gemini con reintentos automáticos"""
+    return client.files.upload(file=pdf_path)
+
+
+@network_retry
+def _generate_content(client: genai.Client, prompt: str, uploaded_file, schema):
+    """Genera contenido con Gemini con reintentos automáticos"""
+    return client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=[prompt, uploaded_file],
+        config=types.GenerateContentConfig(
+            response_mime_type='application/json',
+            response_schema=schema,
+            temperature=0.1,
+        ),
+    )
+
+
 def extract_statement(pdf_path: str) -> ExtractedStatement:
     """
     Extrae metadatos y movimientos de un PDF de estado de cuenta
@@ -75,9 +127,9 @@ def extract_statement(pdf_path: str) -> ExtractedStatement:
     
     client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # Subir PDF
+    # Subir PDF (con reintentos automáticos)
     print(f"📄 Subiendo: {pdf_path}")
-    uploaded_file = client.files.upload(file=pdf_path)
+    uploaded_file = _upload_file(client, pdf_path)
     print(f"✅ Archivo subido: {uploaded_file.name}")
     
     # Prompt mejorado
@@ -128,15 +180,8 @@ Extrae CADA LÍNEA de movimiento que encuentres:
     
     print("🤖 Procesando con Gemini Flash 2.5...")
     
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=[prompt, uploaded_file],
-        config=types.GenerateContentConfig(
-            response_mime_type='application/json',
-            response_schema=ExtractedStatement,
-            temperature=0.1,  # Máxima precisión
-        ),
-    )
+    # Llamada a Gemini con reintentos automáticos para errores de red
+    response = _generate_content(client, prompt, uploaded_file, ExtractedStatement)
     
     print("✅ Respuesta recibida")
     

@@ -47,6 +47,9 @@ using terms from application "Mail"
 		-- Log inicio
 		do shell script "echo '[" & ts & "] Regla EECC: " & (count of theMessages) & " mensaje(s)' >> " & quoted form of logFilePOSIX
 		
+		-- Validación para este procesador (basado en regla de Mail: Subject contains "estado de cuenta")
+		set validSubjectKeyword to "estado de cuenta"
+		
 		tell application "Mail"
 			set msgCount to count of theMessages
 			
@@ -54,14 +57,26 @@ using terms from application "Mail"
 				set this_message to item i of theMessages
 				
 				try
+					-- WORKAROUND: delay para evitar race condition de Mail.app
+					-- cuando llegan múltiples mensajes en batch
+					delay 0.5
+					
+					-- Obtener message id y re-obtener el mensaje para asegurar consistencia
+					set msgIdRef to message id of this_message
+					set this_message to first message of mailbox of this_message whose message id is msgIdRef
+					
 					-- Obtener propiedades del mensaje
 					set msgSubject to subject of this_message
 					set msgSender to sender of this_message
 					set msgSource to source of this_message
 					set msgId to id of this_message
 					
-					-- Log
-					do shell script "echo '  → Procesando: " & msgSubject & "' >> " & quoted form of logFilePOSIX
+					-- Verificar que el subject corresponde a este procesador
+					if msgSubject does not contain validSubjectKeyword then
+						do shell script "echo '  ⚠️ Ignorando (subject no válido): " & msgSubject & "' >> " & quoted form of logFilePOSIX
+					else
+						-- Log
+						do shell script "echo '  → Procesando: " & msgSubject & "' >> " & quoted form of logFilePOSIX
 					
 					-- Generar nombre único para el .eml
 					set ts2 to do shell script "date '+%Y%m%d_%H%M%S'"
@@ -75,7 +90,7 @@ using terms from application "Mail"
 					close access fileRef
 					
 					-- Construir comando Python con message-id
-					set pythonCmd to quoted form of pythonPath & " " & quoted form of scriptPath & " " & quoted form of emlPathPOSIX & " --message-id " & quoted form of msgId
+					set pythonCmd to quoted form of pythonPath & " " & quoted form of scriptPath & " " & quoted form of emlPathPOSIX & " --message-id " & quoted form of (msgId as text)
 					
 					-- Log del comando
 					do shell script "echo '  → Comando: " & pythonCmd & "' >> " & quoted form of logFilePOSIX
@@ -84,6 +99,8 @@ using terms from application "Mail"
 					do shell script pythonCmd & " >> " & quoted form of logFilePOSIX & " 2>&1 &"
 					
 					do shell script "echo '  ✓ Script lanzado' >> " & quoted form of logFilePOSIX
+					
+					end if
 					
 				on error errMsg number errNum
 					do shell script "echo '  ✗ ERROR: " & errMsg & " (" & errNum & ")' >> " & quoted form of logFilePOSIX
